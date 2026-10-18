@@ -1,39 +1,80 @@
 package com.example.myempty.floatingproject
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.widget.Button
+import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.example.myempty.floatingproject.store.SlimeDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-    private val OVERLAY_REQ = 1234
+    private lateinit var apiInput: EditText
+    private lateinit var saveBtn: Button
+    private lateinit var testBtn: Button
+    private val scope = CoroutineScope(Dispatchers.Main)
+
+    private val overlayPermissionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        // no direct result; the user must accept in Settings
+        Toast.makeText(this, "Returned from overlay permission settings", Toast.LENGTH_SHORT).show()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        apiInput = findViewById(R.id.api_key_input)
+        saveBtn = findViewById(R.id.save_button)
+        testBtn = findViewById(R.id.test_button)
+
+        saveBtn.setOnClickListener {
+            val key = apiInput.text.toString().trim()
+            if (key.isEmpty()) {
+                Toast.makeText(this, "Enter API key", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            scope.launch {
+                SlimeDataStore.saveApiKey(applicationContext, key)
+                Toast.makeText(this@MainActivity, "Saved", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        testBtn.setOnClickListener {
+            scope.launch {
+                val key = SlimeDataStore.apiKeyFlow(applicationContext).collect { } // placeholder
+            }
+            // simple check
+            Toast.makeText(this, "Test presses - AI test will run from background service", Toast.LENGTH_SHORT).show()
+        }
+
+        findViewById<Button>(R.id.open_overlay_settings)?.setOnClickListener {
+            requestOverlayPermission()
+        }
+
+        // Start FloatingService if overlay permission granted
+        if (Settings.canDrawOverlays(this)) {
+            startService(Intent(this, com.example.myempty.floatingproject.service.FloatingService::class.java))
+        } else {
+            requestOverlayPermission()
+        }
+    }
+
+    private fun requestOverlayPermission() {
         if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Allow Display over other apps", Toast.LENGTH_LONG).show()
-            val i = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
-            startActivityForResult(i, OVERLAY_REQ)
-        } else {
-            startFloating()
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+            overlayPermissionLauncher.launch(intent)
         }
     }
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == OVERLAY_REQ && Settings.canDrawOverlays(this)) {
-            startFloating()
-        }
-    }
-    private fun startFloating() {
-        val intent = Intent(this, FloatingService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
-        Toast.makeText(this, "Slime started!", Toast.LENGTH_SHORT).show()
-        finish()
+
+    companion object {
+        // MediaProjection result flow: you will need to start this intent to get screen capture permissions.
+        // val REQUEST_MEDIA_PROJECTION = 999
     }
 }
