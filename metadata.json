@@ -1,0 +1,8 @@
+{
+  "name": "Floating Slime Pet",
+  "description": "An interactive floating slime companion with real-time mood expressions, OpenRouter AI conversation, screen sight recognition, and pet care stats.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

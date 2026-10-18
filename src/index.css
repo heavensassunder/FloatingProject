@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+@keyframes slimeFloat {
+  0%, 100% {
+    transform: translateY(0px) scale(1, 1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.02, 0.98);
+  }
+}
+
+@keyframes slimeBounce {
+  0%, 100% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(1.15, 0.85);
+  }
+  60% {
+    transform: scale(0.9, 1.1);
+  }
+}
+
+@keyframes slimeEat {
+  0% { transform: scale(1, 1); }
+  25% { transform: scale(1.2, 0.8) rotate(-4deg); }
+  50% { transform: scale(0.9, 1.15) rotate(4deg); }
+  75% { transform: scale(1.1, 0.95); }
+  100% { transform: scale(1, 1); }
+}
+
+.animate-slime-float {
+  animation: slimeFloat 3s ease-in-out infinite;
+}
+
+.animate-slime-bounce {
+  animation: slimeBounce 0.4s ease-out;
+}
+
+.animate-slime-eat {
+  animation: slimeEat 0.6s ease-in-out;
+}
