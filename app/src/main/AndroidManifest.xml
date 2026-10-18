@@ -22,7 +22,7 @@
         </activity>
 
         <service
-            android:name=".FloatingService"
+            android:name=".service.FloatingService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection|location|connectedDevice|microphone" />
 
