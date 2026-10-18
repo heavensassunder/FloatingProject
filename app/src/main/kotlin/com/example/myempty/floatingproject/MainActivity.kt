@@ -1,7 +1,8 @@
-// Replace the relevant parts of MainActivity.kt with this version (adjust package if needed)
 package com.example.myempty.floatingproject
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -10,6 +11,7 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.myempty.floatingproject.service.FloatingService
 import com.example.myempty.floatingproject.store.SlimeDataStore
@@ -24,7 +26,6 @@ class MainActivity : AppCompatActivity() {
     private val scope = CoroutineScope(Dispatchers.Main)
 
     private val overlayLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        // after returning from settings, check permission and start service if granted
         if (Settings.canDrawOverlays(this)) {
             startFloatingServiceIfNeeded()
             Toast.makeText(this, "Overlay permission granted", Toast.LENGTH_SHORT).show()
@@ -36,6 +37,18 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // Android 13+: request notification permission for foreground service notification
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
+            }
+        }
+
         apiInput = findViewById(R.id.api_key_input)
         saveBtn = findViewById(R.id.save_button)
         testBtn = findViewById(R.id.test_button)
@@ -71,7 +84,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun startFloatingServiceIfNeeded() {
         val svcIntent = Intent(this, FloatingService::class.java)
-        // For Android O+, use startForegroundService
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             ContextCompat.startForegroundService(this, svcIntent)
         } else {
