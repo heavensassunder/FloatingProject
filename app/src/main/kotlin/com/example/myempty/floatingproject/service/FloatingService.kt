@@ -61,7 +61,11 @@ class FloatingService : LifecycleService() {
             this,
             0,
             Intent(this, MainActivity::class.java),
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
         )
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("Slime is floating 💧")
@@ -80,12 +84,12 @@ class FloatingService : LifecycleService() {
     }
 
     private fun setupSlimeOverlay() {
-        // Check overlay permission first - avoid trying to addView if we don't have it
         if (!Settings.canDrawOverlays(this)) {
             Log.w(TAG, "No overlay permission - cannot add slime overlay.")
             try {
                 Toast.makeText(this, "Please grant \"Display over other apps\" permission for Slime.", Toast.LENGTH_LONG).show()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
             val i = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             try {
@@ -100,8 +104,13 @@ class FloatingService : LifecycleService() {
         slimeView = SlimeView(this).apply {
             setOnTouchListener(SlimeTouchListener())
         }
-        val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        else WindowManager.LayoutParams.TYPE_PHONE
+
+        val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -113,21 +122,31 @@ class FloatingService : LifecycleService() {
             x = 100
             y = 300
         }
+
         try {
             windowManager.addView(slimeView, params)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to add overlay view: ${e.message}", e)
-            try { Toast.makeText(this, "Unable to show overlay: ${e.message}", Toast.LENGTH_LONG).show() } catch (_: Exception) {}
+            try {
+                Toast.makeText(this, "Unable to show overlay: ${e.message}", Toast.LENGTH_LONG).show()
+            } catch (_: Exception) {
+            }
             stopSelf()
             return
         }
+
         chatBubble = ChatBubbleView(this)
         Log.d(TAG, "Slime overlay added successfully")
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        slimeView?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
+        slimeView?.let {
+            try {
+                windowManager.removeView(it)
+            } catch (_: Exception) {
+            }
+        }
         chatBubble?.hide()
     }
 
@@ -163,6 +182,7 @@ class FloatingService : LifecycleService() {
 
         override fun onTouch(v: View?, event: MotionEvent): Boolean {
             gesture.onTouchEvent(event)
+
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     startX = event.rawX.toInt()
