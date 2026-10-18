@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
@@ -20,13 +19,11 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.example.myempty.floatingproject.MainActivity
-import com.example.myempty.floatingproject.R
 import com.example.myempty.floatingproject.store.SlimeDataStore
 import com.example.myempty.floatingproject.ui.ChatBubbleView
 import com.example.myempty.floatingproject.ui.SlimeView
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 
 class FloatingService : LifecycleService() {
     private lateinit var windowManager: WindowManager
@@ -98,7 +95,6 @@ class FloatingService : LifecycleService() {
             windowManager.addView(slimeView, params)
         } catch (e: Exception) {
             e.printStackTrace()
-            // if overlay permission missing, launch settings
             val i = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(i)
@@ -117,33 +113,35 @@ class FloatingService : LifecycleService() {
         return null
     }
 
+    // FIXED GESTURE BLOCK - non-nullable MotionEvent
     inner class SlimeTouchListener : View.OnTouchListener {
         private var startX = 0
         private var startY = 0
         private var initialX = 0
         private var initialY = 0
-        private val gesture = GestureDetector(this@FloatingService, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
-                // Talk - call AI
-                slimeTapTalk()
-                return true
-            }
 
-            override fun onDoubleTap(e: MotionEvent?): Boolean {
-                // Double tap - ask what you see (screenshot if available)
-                slimeAskWhatYouSee()
-                return true
-            }
+        private val gesture = GestureDetector(
+            this@FloatingService,
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                    slimeTapTalk()
+                    return true
+                }
 
-            override fun onLongPress(e: MotionEvent?) {
-                // Feed menu - simple demo: increase hunger
-                slimeFeed()
-            }
-        })
+                override fun onDoubleTap(e: MotionEvent): Boolean {
+                    slimeAskWhatYouSee()
+                    return true
+                }
 
-        override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                override fun onLongPress(e: MotionEvent) {
+                    slimeFeed()
+                }
+            }
+        )
+
+        override fun onTouch(v: View?, event: MotionEvent): Boolean {
             gesture.onTouchEvent(event)
-            when (event?.action) {
+            when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     startX = event.rawX.toInt()
                     startY = event.rawY.toInt()
@@ -155,14 +153,19 @@ class FloatingService : LifecycleService() {
                     val dy = event.rawY.toInt() - startY
                     params?.x = initialX + dx
                     params?.y = initialY + dy
-                    try { windowManager.updateViewLayout(slimeView, params) } catch (_: Exception) {}
+                    try {
+                        windowManager.updateViewLayout(slimeView, params)
+                    } catch (_: Exception) {
+                    }
                 }
                 MotionEvent.ACTION_UP -> {
-                    // snap to edge if close
                     params?.let {
                         val displayWidth = resources.displayMetrics.widthPixels
-                        if (it.x < displayWidth / 2) it.x = 0 else it.x = displayWidth
-                        try { windowManager.updateViewLayout(slimeView, it) } catch (_: Exception) {}
+                        it.x = if (it.x < displayWidth / 2) 0 else displayWidth
+                        try {
+                            windowManager.updateViewLayout(slimeView, it)
+                        } catch (_: Exception) {
+                        }
                     }
                 }
             }
@@ -171,14 +174,12 @@ class FloatingService : LifecycleService() {
     }
 
     private fun slimeTapTalk() {
-        // show small 'thinking' bubble and then run OpenRouter if API key present
         chatBubble?.show("Thinking...", params?.x ?: 0, (params?.y ?: 0) - 150)
         val key = apiKey
         if (key.isNullOrEmpty()) {
             chatBubble?.show("No API key. Open app to set it.", params?.x ?: 0, (params?.y ?: 0) - 150)
             return
         }
-        // Call OpenRouter in coroutine
         lifecycleScope.launch {
             try {
                 val client = com.example.myempty.floatingproject.network.OpenRouterClient(key)
@@ -194,8 +195,6 @@ class FloatingService : LifecycleService() {
 
     private fun slimeAskWhatYouSee() {
         chatBubble?.show("Looking...", params?.x ?: 0, (params?.y ?: 0) - 150)
-        // TODO: If you have MediaProjection result stored, call ScreenshotHelper to capture and send to OpenRouter
-        // For now, send a text-only prompt
         val key = apiKey
         if (key.isNullOrEmpty()) {
             chatBubble?.show("No API key", params?.x ?: 0, (params?.y ?: 0) - 150)
@@ -216,6 +215,5 @@ class FloatingService : LifecycleService() {
 
     private fun slimeFeed() {
         chatBubble?.show("Nom! +20 hunger", params?.x ?: 0, (params?.y ?: 0) - 150)
-        // TODO: update SlimeStats via SlimeDataStore
     }
 }
