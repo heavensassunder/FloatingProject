@@ -7,14 +7,17 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
+import android.util.Log
 import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
@@ -31,6 +34,8 @@ class FloatingService : LifecycleService() {
     private var params: WindowManager.LayoutParams? = null
     private var chatBubble: ChatBubbleView? = null
     private var apiKey: String? = null
+
+    private val TAG = "FloatingService"
 
     override fun onCreate() {
         super.onCreate()
@@ -75,6 +80,23 @@ class FloatingService : LifecycleService() {
     }
 
     private fun setupSlimeOverlay() {
+        // Check overlay permission first - avoid trying to addView if we don't have it
+        if (!Settings.canDrawOverlays(this)) {
+            Log.w(TAG, "No overlay permission - cannot add slime overlay.")
+            try {
+                Toast.makeText(this, "Please grant \"Display over other apps\" permission for Slime.", Toast.LENGTH_LONG).show()
+            } catch (_: Exception) {}
+            val i = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                startActivity(i)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to launch overlay settings intent: ${e.message}", e)
+            }
+            stopSelf()
+            return
+        }
+
         slimeView = SlimeView(this).apply {
             setOnTouchListener(SlimeTouchListener())
         }
@@ -94,12 +116,13 @@ class FloatingService : LifecycleService() {
         try {
             windowManager.addView(slimeView, params)
         } catch (e: Exception) {
-            e.printStackTrace()
-            val i = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(i)
+            Log.e(TAG, "Failed to add overlay view: ${e.message}", e)
+            try { Toast.makeText(this, "Unable to show overlay: ${e.message}", Toast.LENGTH_LONG).show() } catch (_: Exception) {}
+            stopSelf()
+            return
         }
         chatBubble = ChatBubbleView(this)
+        Log.d(TAG, "Slime overlay added successfully")
     }
 
     override fun onDestroy() {
@@ -113,7 +136,6 @@ class FloatingService : LifecycleService() {
         return null
     }
 
-    // FIXED GESTURE BLOCK - non-nullable MotionEvent
     inner class SlimeTouchListener : View.OnTouchListener {
         private var startX = 0
         private var startY = 0
