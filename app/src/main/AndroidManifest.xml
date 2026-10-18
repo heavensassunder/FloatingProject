@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.myempty.floatingproject">
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -22,7 +23,7 @@
         </activity>
 
         <service
-            android:name=".service.FloatingService"
+            android:name="com.example.myempty.floatingproject.service.FloatingService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection|location|connectedDevice|microphone" />
 
